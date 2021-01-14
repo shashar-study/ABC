@@ -1825,3 +1825,51 @@ Redis增量复制是指Slave初始化后开始正常工作时主服务器发生�
 哨兵模式是一种特殊的模式，首先Redis提供了哨兵的命令，哨兵是一个独立的进程，作为进程，它会独立运行。其原理是**哨兵通过发送命令，等待Redis服务器响应，从而监控运行的多个Redis实例。**
 
 <img src="https://upload-images.jianshu.io/upload_images/11320039-57a77ca2757d0924.png?imageMogr2/auto-orient/strip|imageView2/2/format/webp" alt="img" style="zoom:50%;" />
+
+这里的哨兵有两个作用
+
+- 通过发送命令，让Redis服务器返回监控其运行状态，包括主服务器和从服务器。
+- 当哨兵监测到master宕机，会自动将slave切换成master，然后通过**发布订阅模式**通知其他的从服务器，修改配置文件，让它们切换主机。
+
+然而一个哨兵进程对Redis服务器进行监控，可能会出现问题，为此，我们可以使用多个哨兵进行监控。各个哨兵之间还会进行监控，这样就形成了多哨兵模式。
+
+<img src="https://upload-images.jianshu.io/upload_images/11320039-3f40b17c0412116c.png?imageMogr2/auto-orient/strip|imageView2/2/format/webp" alt="img" style="zoom:67%;" />
+
+用文字描述一下**故障切换（failover）**的过程。假设主服务器宕机，哨兵1先检测到这个结果，系统并不会马上进行failover过程，仅仅是哨兵1主观的认为主服务器不可用，这个现象成为**主观下线**。当后面的哨兵也检测到主服务器不可用，并且数量达到一定值时，那么哨兵之间就会进行一次投票，投票的结果由一个哨兵发起，进行failover操作。切换成功后，就会通过发布订阅模式，让各个哨兵把自己监控的从服务器实现切换主机，这个过程称为**客观下线**。这样对于客户端而言，一切都是透明的。
+
+
+
+> 步骤
+
+1. 配置哨兵模式的配置文件  ，名称固定是：sentinel.conf
+
+```bash
+#sentinel monitor 自己取得名称 host port 1
+sentinel monitor myredis 127.0.0.1 6379 1
+```
+
+这里的1 表示主机宕机后哨兵会进行选举，最终票数最多的从机会成为新的主机
+
+2. 启动哨兵模式
+
+首先，在redis安装目录下的src下有 redis-sentinel   ，cd到该目录下，以之前做好的sentinel.conf为配置文件启动该服务
+
+```bash
+ redis-sentinel  路径/sentinel.conf
+```
+
+哨兵模式下，如果主机宕机，从机 成为主机之后，原本的主机恢复正常后会自动成为从机
+
+
+
+> 优点
+
+1. 哨兵集群，基于主从复制
+2. 主从可切换，系统复用性好
+3. 自动的主从切换
+
+> 缺点
+
+1. redis不好在线扩容
+2. 配置比较麻烦
+
