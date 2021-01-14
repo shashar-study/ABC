@@ -842,3 +842,78 @@ docker stop 容器ID
 #docker run -it --rm 镜像名 一般是用来测试，用完就删除，docker ps -a不可查
 docker run -it --rm tomcat:9.0
 ```
+
+以上测试了命令docker run -it --rm 镜像名，接下来开始正常走流程
+
+```shell
+#1.下载镜像
+docker pull tomcat
+#2.启动镜像 
+docker run -d -p 3344:8080 --name tomcat02  tomcat  #这里偷懒，不想多设置安全组，直接用了3344，这个在上文我已经配置过的端口号
+```
+
+启动之后，访问http://主机号:3344，出现404页面，这是因为webapps里没有内容
+
+以及，Linux命令少了很多 ，这是 由于阿里云镜像的原因，阿里云默认是最小的镜像，所以不必要的都剔除掉，以保证最小的可运行环境。
+
+```shell
+#进入容器
+[root@Shashar-study ~]#  docker exec -it tomcat02 /bin/bash
+
+#查看容器内部目录，同之前配置的Tomcat
+root@078bc0453d20:/usr/local/tomcat# ls
+BUILDING.txt     LICENSE  README.md      RUNNING.txt  conf  logs            temp     webapps.dist
+CONTRIBUTING.md  NOTICE   RELEASE-NOTES  bin          lib   native-jni-lib  webapps  work
+
+#进入webapps并查看，可以发现，目录为空
+root@078bc0453d20:/usr/local/tomcat# cd webapps
+root@078bc0453d20:/usr/local/tomcat/webapps# ls
+root@078bc0453d20:/usr/local/tomcat/webapps# 
+```
+
+*解决方案：* 将webapps.dist下的文件都拷贝到webapps下即可
+
+```shell
+root@078bc0453d20:/usr/local/tomcat# cp -r webapps.dist/* webapps
+```
+
+此时再刷新http://主机号:3344，就可以访问到Tomcat页面了
+
+## elasticsearch+kibana部署
+
+```shell
+# es 暴露的端口很多！
+# es 十分耗内存
+# es 的数据一般需要放置到安全目录！挂载
+# --net somenetwork ? 网络配置
+
+# 1.  启动elasticsearch  
+docker run -d --name elasticsearch  -p 9200:9200 -p 9300:9300 -e "discovery.type=single-node" elasticsearch:7.10.1
+```
+
+第一步就卡死了，服务器也掉线了，我…………
+
+坚强的打工人无所畏惧，重启docker stop，然后重新启动容器
+
+```shell
+#可以添加内存的限制，修改配置文件 -e 环境配置修改,重新取个名
+docker run -d --name elasticsearchmin -p 9200:9200 -p 9300:9300 -e "discovery.type=single-node" -e ES_JAVA_OPTS="-Xms64m -Xmx512m" elasticsearch:7.6.2
+
+#查看CPU状态
+docker stats
+```
+
+![image-20210114164246206](C:\Users\shasha\AppData\Roaming\Typora\typora-user-images\image-20210114164246206.png)
+
+```shell
+# 测试一下es是否成功启动
+curl localhost:9200
+```
+
+<img src="C:\Users\shasha\AppData\Roaming\Typora\typora-user-images\image-20210114164401038.png" alt="image-20210114164401038" style="zoom:50%;" />
+
+
+
+
+
+# Docker可视化管理工具Portainer
